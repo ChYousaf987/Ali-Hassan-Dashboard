@@ -1,0 +1,71 @@
+.styled-scrollbar {
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #cccccc transparent;
+}
+
+.styled-scrollbar::-webkit-scrollbar {
+    width: 10px;
+}
+
+.styled-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #cccccc;
+    border: 2px solid #ffffff;
+    border-radius: 5px;
+}
+
+
+.styled-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+    display: none; /* For Chrome, Safari, and Edge */
+  }
+
+.boxClass {
+    display: flex;
+    width: 42px;
+    padding: 8px;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    border-radius: 2px;
+   
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 600;
+    line-height: 125%;
+}
+.recyclability {
+    background: #e4df00;
+    color: #006b5c;
+}
+
+.recycledContent {
+    background: #009578;
+    color: #ffffff;
+}
+
+.reuse {
+    background: #accf7d;
+    color: #006b5c;
+}
+
+.minimization {
+    background: #90d2c5;
+    color: #006b5c;
+}
+
+.hs {
+    background: #006b5b;
+    color: #ffffff;
+}
+.depositObligation {
+    background: #748fc9;
+    color: #ffffff;
+}
+.ban {
+    background: #e94b5b;
+    color: #ffffff;
+}
