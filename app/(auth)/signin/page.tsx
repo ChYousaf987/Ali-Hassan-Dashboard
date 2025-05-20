@@ -12,7 +12,7 @@ const BoxedSignIn = () => {
         <div className="relative font-manrope">
             {/* Background image */}
             <div className="absolute inset-0">
-                <Image quality={100} width={100} height={100} src="/assets/images/BG_Image.png" alt="Background" className="h-full w-full object-cover" />
+                
                 <div className="absolute inset-0 bg-black bg-opacity-30 backdrop-blur-sm" />
             </div>
 

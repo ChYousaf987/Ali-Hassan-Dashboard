@@ -66,7 +66,7 @@ export const CreateBlogs = () => {
 
     const handleCreate = async () => {
         if (!title || !value || !image || !category) {
-            showMessage('Please fill all fields and select or enter a category.', 'error');
+            showMessage('Please Enter All The Fields .', 'error');
             return;
         }
 

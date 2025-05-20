@@ -2,125 +2,168 @@
 
 import { useEffect, useState } from 'react';
 import { db } from '@/config/firebase';
-import { collection, getDocs, updateDoc, doc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, updateDoc, doc, deleteDoc, Timestamp, addDoc } from 'firebase/firestore'; // Added addDoc import
 import axios from 'axios';
 import dynamic from 'next/dynamic';
 import ClockLoader from '../common/ClockLoader';
 import { showMessage } from '@/utils/notify/Alert';
+import CreatableSelect from 'react-select/creatable';
 
 import 'quill/dist/quill.snow.css';
 import '../create/editor.css';
 
-// Cloudinary config from .env
 const CLOUDINARY_URL = process.env.NEXT_PUBLIC_CLOUDINARY_URL!;
 const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!;
 
-// Define Option interface with only label and value for compatibility
 interface Option {
     label: string;
     value: string;
 }
 
-// Minimal CustomSelect component implementation
 interface CustomSelectProps {
     options: Option[];
     value: Option | null;
     onChange: (selected: Option | null) => void;
     placeholder?: string;
+    label?: string;
+    disabled?: boolean;
 }
-const CustomSelect = ({ options, value, onChange, placeholder }: CustomSelectProps) => {
+
+const CustomSelect: React.FC<CustomSelectProps> = ({ onChange, value, options, label, placeholder, disabled }) => {
+    const handleCreateOption = (inputValue: string) => {
+        const newOption: Option = {
+            value: inputValue.toLowerCase().replace(/\s+/g, '-'),
+            label: inputValue,
+        };
+        onChange(newOption);
+    };
+
     return (
-        <select
-            value={value?.value || ''}
-            onChange={(e) => {
-                const selectedValue = e.target.value;
-                const selectedOption = options.find((opt) => opt.value === selectedValue) || null;
-                onChange(selectedOption);
-            }}
-            className="border p-2 rounded w-full"
-        >
-            <option value="">{placeholder || 'Select...'}</option>
-            {options.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                </option>
-            ))}
-        </select>
+        <div className="flex flex-col">
+            {label && (
+                <label htmlFor="category" className="font-semibold text-[0.8rem] text-neutral-500 w-full">
+                    {label}
+                </label>
+            )}
+            <CreatableSelect
+                options={options}
+                isDisabled={disabled}
+                onChange={onChange}
+                onCreateOption={handleCreateOption}
+                isSearchable
+                value={value}
+                placeholder={placeholder}
+                classNames={{
+                    option: (state) => `py-2 px-4 cursor-pointer rounded-md ${state.isFocused ? 'bg-neutral-100' : ''} ${state.isSelected ? 'bg-blue-100 text-blue-700' : ''}`,
+                    control: () => 'text-[0.9rem] font-manrope',
+                    menu: () => 'bg-white rounded-md shadow-lg',
+                }}
+                styles={{
+                    control: (baseStyles, state) => ({
+                        ...baseStyles,
+                        border: '1px solid #11111133',
+                        borderRadius: '12px',
+                        padding: '0.5rem 0.75rem',
+                        backgroundColor: state.isDisabled ? '#f5f5f5' : 'white',
+                        color: state.isDisabled ? '#B3B0B0' : '#0E1726',
+                        boxShadow: state.isFocused ? '0 0 0 2px rgba(59, 130, 246, 0.5)' : 'none',
+                        '&:hover': {
+                            borderColor: '#3b82f6',
+                        },
+                    }),
+                    menu: (baseStyles) => ({
+                        ...baseStyles,
+                        zIndex: 9999,
+                        marginTop: '4px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '10px',
+                        backgroundColor: 'white',
+                    }),
+                    menuList: (baseStyles) => ({
+                        ...baseStyles,
+                        padding: '8px',
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                    }),
+                    option: (baseStyles) => ({
+                        ...baseStyles,
+                        fontSize: '0.9rem',
+                        color: '#0E1726',
+                    }),
+                    placeholder: (baseStyles) => ({
+                        ...baseStyles,
+                        fontSize: '0.8rem',
+                        color: '#B0B0B0',
+                        fontFamily: 'Manrope, sans-serif',
+                    }),
+                }}
+            />
+        </div>
     );
 };
 
-// Dynamically import ReactQuill for rich text editing
 const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
 
 export const BlogPage = () => {
-    // Blog state
     const [blogs, setBlogs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Edit modal state
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [selectedBlog, setSelectedBlog] = useState<any>(null);
 
-    // Blog form fields
     const [title, setTitle] = useState('');
     const [value, setValue] = useState('');
     const [preview, setPreview] = useState<string | null>(null);
     const [image, setImage] = useState<File | null>(null);
 
-    // Categories with updated type
     const [blogCategories, setBlogCategories] = useState<Option[]>([]);
     const [category, setCategory] = useState<Option | null>(null);
     const [newCategory, setNewCategory] = useState('');
 
-    // Delete modal
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [blogToDelete, setBlogToDelete] = useState<any>(null);
-
-    // Image modal
     const [isImageModalOpen, setIsImageModalOpen] = useState(false);
     const [modalImage, setModalImage] = useState<string | null>(null);
+    const [blogToDelete, setBlogToDelete] = useState<any>(null);
 
-    // Fetch categories function (simulate fetching or import your service)
     const fetchCategories = async (): Promise<Option[]> => {
-        // Example fetch categories from Firestore 'categories' collection
         try {
             const querySnapshot = await getDocs(collection(db, 'categories'));
-            return querySnapshot.docs.map((doc) => {
+            const categories = querySnapshot.docs.map((doc) => {
                 const data = doc.data();
                 return {
                     value: data.value || data.label || doc.id,
                     label: data.label || data.value || doc.id,
                 };
             });
+            return categories;
         } catch (error) {
             console.error('Error fetching categories:', error);
             return [];
         }
     };
 
-    // Add category stub (implement your own logic or firestore write)
     const addCategory = async (newCat: string): Promise<Option> => {
-        // For example, add to Firestore and return new Option
-        // Here we just return dummy option for demo
-        // Replace with actual addDoc logic
-        return {
+        const newOption: Option = {
             label: newCat,
             value: newCat.toLowerCase().replace(/\s+/g, '-'),
         };
+        try {
+            await addDoc(collection(db, 'categories'), newOption);
+            return newOption;
+        } catch (error) {
+            console.error('Error adding category to Firestore:', error);
+            return newOption; // Return the option even if Firestore write fails
+        }
     };
 
-    // Delete category stub (implement your own logic)
     const deleteCategory = async (id: string) => {
-        // Implement your deletion logic here
+        // Implement Firestore deletion if needed
         return;
     };
 
     useEffect(() => {
-        if (isEditOpen) {
-            document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = 'auto';
-        }
+        if (isEditOpen) document.body.style.overflow = 'hidden';
+        else document.body.style.overflow = 'auto';
     }, [isEditOpen]);
 
     useEffect(() => {
@@ -128,13 +171,17 @@ export const BlogPage = () => {
     }, []);
 
     const fetchAllData = async () => {
-        await fetchBlogs();
-        const categories = await fetchCategories();
-        setBlogCategories(categories);
+        setLoading(true);
+        try {
+            await fetchBlogs();
+            const categories = await fetchCategories();
+            setBlogCategories(categories);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const fetchBlogs = async () => {
-        setLoading(true);
         try {
             const querySnapshot = await getDocs(collection(db, 'blogs'));
             let blogList = querySnapshot.docs.map((doc) => ({
@@ -142,18 +189,13 @@ export const BlogPage = () => {
                 ...doc.data(),
             }));
 
-            // Sort descending by createdAt timestamp
             blogList = blogList.sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
-
             setBlogs(blogList);
         } catch (error) {
             console.error('Error fetching blogs:', error);
-        } finally {
-            setLoading(false);
         }
     };
 
-    // Handle image selection & preview
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
@@ -162,7 +204,6 @@ export const BlogPage = () => {
         }
     };
 
-    // Upload image to Cloudinary
     const uploadToCloudinary = async (file: File) => {
         const formData = new FormData();
         formData.append('file', file);
@@ -177,18 +218,30 @@ export const BlogPage = () => {
         }
     };
 
-    // Open edit modal & fill form
-    const handleUpdateInit = (blog: any) => {
+    const handleUpdateInit = async (blog: any) => {
+        console.log('Blog category:', blog.category);
+        let categories = blogCategories;
+        if (categories.length === 0) {
+            categories = await fetchCategories();
+            setBlogCategories(categories);
+        }
+        console.log('Available categories:', categories);
+
         setSelectedBlog(blog);
         setTitle(blog.title || '');
         setValue(blog.value || '');
         setPreview(blog.image || null);
-        setCategory(blog.category ? { value: blog.category, label: blog.category } : null);
         setImage(null);
+
+        const blogCategoryValue = blog.category?.toLowerCase()?.replace(/\s+/g, '-') || '';
+        const foundCategory = categories.find((c) => c.value.toLowerCase() === blogCategoryValue || c.label.toLowerCase() === blogCategoryValue);
+
+        console.log('Found category:', foundCategory);
+        setCategory(foundCategory || (blog.category ? { value: blogCategoryValue, label: blog.category } : null));
+
         setIsEditOpen(true);
     };
 
-    // Save blog updates
     const handleUpdate = async () => {
         if (!title || !value || !category) {
             showMessage('Please fill all fields and select a category.', 'error');
@@ -213,7 +266,6 @@ export const BlogPage = () => {
 
             showMessage('Blog updated successfully!', 'success');
 
-            // Clear form & close modal
             setTitle('');
             setValue('');
             setImage(null);
@@ -221,7 +273,6 @@ export const BlogPage = () => {
             setCategory(null);
             setIsEditOpen(false);
 
-            // Refresh blogs
             fetchBlogs();
         } catch (error) {
             console.error('Error updating blog:', error);
@@ -231,7 +282,6 @@ export const BlogPage = () => {
         }
     };
 
-    // Delete blog confirmation + action
     const handleDelete = async (id: string) => {
         setIsDeleteModalOpen(false);
         setLoading(true);
@@ -248,10 +298,8 @@ export const BlogPage = () => {
         }
     };
 
-    // Add new category to DB & state
     const handleAddCategory = async () => {
         if (!newCategory.trim()) return;
-
         try {
             const added = await addCategory(newCategory.trim());
             setBlogCategories((prev) => [...prev, added]);
@@ -261,7 +309,6 @@ export const BlogPage = () => {
         }
     };
 
-    // Delete category from DB & state
     const handleDeleteCategory = async (id: string) => {
         try {
             await deleteCategory(id);
@@ -317,24 +364,25 @@ export const BlogPage = () => {
 
             {/* Edit Modal */}
             {isEditOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50" onClick={() => setIsEditOpen(false)}>
-                    <div className="bg-white p-6 rounded-lg max-w-2xl w-full relative" onClick={(e) => e.stopPropagation()}>
+                <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50" onClick={() => setIsEditOpen(false)}>
+                    <div className="bg-white p-6 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto relative" onClick={(e) => e.stopPropagation()}>
                         <h2 className="text-xl font-bold mb-4">Update Blog</h2>
 
+                        {/* Title */}
                         <input className="w-full p-2 border rounded mb-4" type="text" placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
 
+                        {/* Rich Text Editor */}
                         <div className="mb-4">
-                            <ReactQuill theme="snow" value={value} onChange={setValue} />
+                            <ReactQuill theme="snow" value={value} onChange={setValue} style={{ height: '100%' }} />
                         </div>
 
+                        {/* Category Selector */}
                         <div className="mb-4">
-                            <CustomSelect options={blogCategories} value={category} onChange={(selected) => setCategory(selected)} placeholder="Select category" />
-                            <div className="flex gap-2 mt-2">
-                                <input type="text" className="border rounded p-1 flex-grow" placeholder="Add new category" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} />
-                                <button onClick={handleAddCategory} className="bg-green-500 text-white px-4 rounded hover:bg-green-600 transition">
-                                    Add
-                                </button>
-                            </div>
+                            <CustomSelect options={blogCategories} value={category} onChange={(selected) => setCategory(selected)} label="Category" placeholder="Select or type a category..." />
+
+                            
+
+                            {/* Existing Categories */}
                             <div className="flex flex-wrap gap-2 mt-2">
                                 {blogCategories.map((cat) => (
                                     <div key={cat.value} className="flex items-center gap-1 bg-gray-200 px-2 rounded">
@@ -347,12 +395,14 @@ export const BlogPage = () => {
                             </div>
                         </div>
 
+                        {/* Image Upload */}
                         <div className="mb-4">
                             <label className="block mb-1">Image</label>
                             <input type="file" accept="image/*" onChange={handleImageUpload} />
                             {preview && <img src={preview} alt="Preview" className="mt-2 max-h-48 object-contain rounded" />}
                         </div>
 
+                        {/* Action Buttons */}
                         <div className="flex justify-end gap-3">
                             <button onClick={() => setIsEditOpen(false)} className="bg-gray-300 px-4 py-2 rounded hover:bg-gray-400 transition">
                                 Cancel

@@ -10,7 +10,7 @@ const ComponentsAuthLoginForm = () => {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
-    const ADMIN_EMAIL = 'alihassan@gmial.com';
+    const ADMIN_EMAIL = 'alihassan@gmail.com';
     const ADMIN_PASSWORD = 'admin123';
 
     const handleSubmit = () => {
@@ -32,7 +32,6 @@ const ComponentsAuthLoginForm = () => {
             }),
         );
 
-        alert('Logged in successfully!');
         push('/');
     };
 
@@ -67,7 +66,7 @@ const ComponentsAuthLoginForm = () => {
                 </div>
             </div>
 
-            <button onClick={handleSubmit} className="w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition duration-200">
+            <button onClick={handleSubmit} className="w-full text-white py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold transition duration-200">
                 Log In
             </button>
         </div>
