@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { db } from '@/config/firebase';
-import { collection, getDocs, updateDoc, doc, deleteDoc, Timestamp, addDoc } from 'firebase/firestore'; // Added addDoc import
+import { collection, getDocs, updateDoc, doc, deleteDoc, addDoc, Timestamp } from 'firebase/firestore';
 import axios from 'axios';
 import dynamic from 'next/dynamic';
 import ClockLoader from '../common/ClockLoader';
@@ -116,29 +116,50 @@ export const BlogPage = () => {
     const [preview, setPreview] = useState<string | null>(null);
     const [image, setImage] = useState<File | null>(null);
 
-    const [blogCategories, setBlogCategories] = useState<Option[]>([]);
+    const [blogCategories, setBlogCategories] = useState<Option[]>([
+        { value: 'web-development', label: 'Web Development' },
+        { value: 'mobile-development', label: 'Mobile Development' },
+        { value: 'ai-ml', label: 'AI & Machine Learning' },
+        { value: 'cybersecurity', label: 'Cybersecurity' },
+        { value: 'cloud-computing', label: 'Cloud Computing' },
+        { value: 'data-science', label: 'Data Science' },
+        { value: 'programming', label: 'Programming' },
+        { value: 'tech-news', label: 'Tech News' },
+        { value: 'software-engineering', label: 'Software Engineering' },
+        { value: 'gadgets', label: 'Gadgets & Reviews' },
+        { value: 'gaming', label: 'Gaming' },
+        { value: 'productivity', label: 'Productivity & Tools' },
+        { value: 'entrepreneurship', label: 'Entrepreneurship' },
+        { value: 'marketing', label: 'Digital Marketing' },
+        { value: 'self-improvement', label: 'Self-Improvement' },
+        { value: 'finance', label: 'Finance & Investing' },
+        { value: 'lifestyle', label: 'Lifestyle & Wellness' },
+    ]);
     const [category, setCategory] = useState<Option | null>(null);
     const [newCategory, setNewCategory] = useState('');
 
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [blogToDelete, setBlogToDelete] = useState<any>(null);
+
     const [isImageModalOpen, setIsImageModalOpen] = useState(false);
     const [modalImage, setModalImage] = useState<string | null>(null);
-    const [blogToDelete, setBlogToDelete] = useState<any>(null);
 
     const fetchCategories = async (): Promise<Option[]> => {
         try {
             const querySnapshot = await getDocs(collection(db, 'categories'));
-            const categories = querySnapshot.docs.map((doc) => {
+            const firestoreCategories = querySnapshot.docs.map((doc) => {
                 const data = doc.data();
                 return {
                     value: data.value || data.label || doc.id,
                     label: data.label || data.value || doc.id,
                 };
             });
-            return categories;
+            // Merge hardcoded categories with Firestore categories, avoiding duplicates
+            const mergedCategories = [...blogCategories, ...firestoreCategories.filter((fc) => !blogCategories.some((bc) => bc.value === fc.value))];
+            return mergedCategories;
         } catch (error) {
             console.error('Error fetching categories:', error);
-            return [];
+            return blogCategories; // Fallback to hardcoded categories
         }
     };
 
@@ -148,7 +169,11 @@ export const BlogPage = () => {
             value: newCat.toLowerCase().replace(/\s+/g, '-'),
         };
         try {
-            await addDoc(collection(db, 'categories'), newOption);
+            // Avoid adding duplicate categories
+            if (!blogCategories.some((cat) => cat.value === newOption.value)) {
+                await addDoc(collection(db, 'categories'), newOption);
+                setBlogCategories((prev) => [...prev, newOption]);
+            }
             return newOption;
         } catch (error) {
             console.error('Error adding category to Firestore:', error);
@@ -383,16 +408,7 @@ export const BlogPage = () => {
                             
 
                             {/* Existing Categories */}
-                            <div className="flex flex-wrap gap-2 mt-2">
-                                {blogCategories.map((cat) => (
-                                    <div key={cat.value} className="flex items-center gap-1 bg-gray-200 px-2 rounded">
-                                        <span>{cat.label}</span>
-                                        <button onClick={() => handleDeleteCategory(cat.value)} className="text-red-600 font-bold hover:text-red-800">
-                                            ×
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
+                            
                         </div>
 
                         {/* Image Upload */}
