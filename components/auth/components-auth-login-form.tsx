@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/config/firebase';
 import { FaRegEye, FaRegEyeSlash } from 'react-icons/fa6';
 
 const ComponentsAuthLoginForm = () => {
@@ -9,34 +11,22 @@ const ComponentsAuthLoginForm = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [loading, setLoading] = useState(false);
 
-    const ADMIN_EMAIL = 'alihassan@gmail.com';
-    const ADMIN_PASSWORD = 'admin123';
-
-    const handleSubmit = () => {
-        if (email !== ADMIN_EMAIL) {
-            alert('Invalid Email');
-            return;
+    const handleSubmit = async () => {
+        setLoading(true);
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            push('/');
+        } catch (error: any) {
+            alert(error.message);
+        } finally {
+            setLoading(false);
         }
-
-        if (password !== ADMIN_PASSWORD) {
-            alert('Invalid Password');
-            return;
-        }
-
-        localStorage.setItem(
-            'token',
-            JSON.stringify({
-                token: 'admin-token',
-                expiresIn: Date.now() + 3 * 24 * 60 * 60 * 1000,
-            }),
-        );
-
-        push('/');
     };
 
     return (
-        <div className="">
+        <div>
             <h2 className="text-3xl font-bold text-center mb-8">Admin Login</h2>
 
             <div className="mb-5">
@@ -52,22 +42,22 @@ const ComponentsAuthLoginForm = () => {
 
             <div className="mb-6">
                 <label className="text-sm block mb-1 font-medium">Password</label>
-                <div className="flex items-center  border border-black rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-400">
+                <div className="flex items-center border border-black rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-400">
                     <input
                         type={showPassword ? 'text' : 'password'}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Enter your password"
-                        className="w-full px-4 py-2 bg-transparent   focus:outline-none"
+                        className="w-full px-4 py-2 bg-transparent focus:outline-none"
                     />
-                    <button type="button" onClick={() => setShowPassword((prev) => !prev)} className="px-3 ">
+                    <button type="button" onClick={() => setShowPassword((prev) => !prev)} className="px-3">
                         {showPassword ? <FaRegEye size={18} /> : <FaRegEyeSlash size={18} />}
                     </button>
                 </div>
             </div>
 
-            <button onClick={handleSubmit} className="w-full text-white py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold transition duration-200">
-                Log In
+            <button onClick={handleSubmit} className="w-full text-white py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold transition duration-200" disabled={loading}>
+                {loading ? 'Logging in...' : 'Log In'}
             </button>
         </div>
     );

@@ -1,18 +1,18 @@
-// utils/LoginCheck.tsx
 'use client';
-import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '@/config/firebase';
+import { useRouter } from 'next/navigation';
 
 export const LoginCheck = () => {
     const { push } = useRouter();
 
     useEffect(() => {
-        const raw = localStorage.getItem('token');
-        const token = raw ? JSON.parse(raw) : null;
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            if (!user) push('/signin');
+        });
 
-        if (!token || token.expiresIn < Date.now()) {
-            push('/signin');
-        }
+        return () => unsubscribe();
     }, [push]);
 
     return null;

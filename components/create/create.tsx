@@ -12,8 +12,6 @@ import ClockLoader from '../common/ClockLoader';
 import { CustomSelect } from './CustomSelect';
 import type { ReactQuillProps } from 'react-quill';
 
-
-// Fix: Add dynamic import with fallback typing
 const ReactQuill = dynamic(() => import('react-quill'), {
     ssr: false,
 }) as unknown as React.FC<ReactQuillProps>;
@@ -32,7 +30,6 @@ export const CreateBlogs = () => {
         value: 'web-development',
         label: 'Web Development',
     });
-
     const [loading, setLoading] = useState(false);
 
     const blogCategories: CategoryOption[] = [
@@ -65,30 +62,34 @@ export const CreateBlogs = () => {
     };
 
     const handleCreate = async () => {
-        if (!title || !value || !image || !category) {
-            showMessage('Please Enter All The Fields .', 'error');
+        if (!title || !value || !category) {
+            showMessage('Please Enter All The Fields.', 'error');
             return;
         }
 
         setLoading(true);
 
         try {
-            const CLOUDINARY_URL = process.env.NEXT_PUBLIC_CLOUDINARY_URL;
-            const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+            let imageURL = '';
 
-            if (!CLOUDINARY_URL || !UPLOAD_PRESET) {
-                console.error('Missing Cloudinary config:', { CLOUDINARY_URL, UPLOAD_PRESET });
-                showMessage('Cloudinary configuration is missing.', 'error');
-                setLoading(false);
-                return;
+            if (image) {
+                const CLOUDINARY_URL = process.env.NEXT_PUBLIC_CLOUDINARY_URL;
+                const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+                if (!CLOUDINARY_URL || !UPLOAD_PRESET) {
+                    console.error('Missing Cloudinary config:', { CLOUDINARY_URL, UPLOAD_PRESET });
+                    showMessage('Cloudinary configuration is missing.', 'error');
+                    setLoading(false);
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('file', image);
+                formData.append('upload_preset', UPLOAD_PRESET);
+
+                const response = await axios.post(CLOUDINARY_URL, formData);
+                imageURL = response.data.secure_url;
             }
-
-            const formData = new FormData();
-            formData.append('file', image);
-            formData.append('upload_preset', UPLOAD_PRESET);
-
-            const response = await axios.post(CLOUDINARY_URL, formData);
-            const imageURL = response.data.secure_url;
 
             await addDoc(collection(db, 'blogs'), {
                 title,
@@ -100,7 +101,6 @@ export const CreateBlogs = () => {
 
             showMessage('Blog created successfully!', 'success');
 
-            // Reset form
             setTitle('');
             setImage(null);
             setPreview(null);
@@ -135,7 +135,7 @@ export const CreateBlogs = () => {
                 </div>
 
                 <div className="flex flex-col space-y-2">
-                    <label className="text-gray-600 font-medium">Upload Image</label>
+                    <label className="text-gray-600 font-medium">Upload Image (optional)</label>
                     <input type="file" accept="image/*" onChange={handleImageUpload} className="p-2 border border-gray-300 rounded-md file:bg-blue-100 file:text-blue-700" />
                     {preview && <img src={preview} alt="Preview" className="mt-3 h-48 object-cover rounded-md border border-gray-300" />}
                 </div>
