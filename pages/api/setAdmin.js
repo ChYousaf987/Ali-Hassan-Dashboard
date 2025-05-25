@@ -1,6 +1,6 @@
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
-import serviceAccount from '../../config/serviceAccountKey.json'; // Adjust path based on your structure
+// import serviceAccount from '../../config/serviceAccountKey.json'; // Adjust path based on your structure
 
 if (!getApps().length) {
     initializeApp({
