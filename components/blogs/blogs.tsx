@@ -104,6 +104,17 @@ const CustomSelect: React.FC<CustomSelectProps> = ({ onChange, value, options, l
 
 const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
 
+// Helper function to format Firebase Timestamp
+const formatDate = (timestamp: any): string => {
+    if (!timestamp || !timestamp.toDate) return 'No date available';
+    const date = timestamp.toDate();
+    return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+    });
+};
+
 export const BlogPage = () => {
     const [blogs, setBlogs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -366,21 +377,24 @@ export const BlogPage = () => {
                             />
 
                             <h3 className="text-lg font-semibold">{blog.title}</h3>
-                            <p className="text-sm italic text-gray-600 mb-3">{blog.category}</p>
+                            <p className="text-sm italic text-gray-600 mb-1">{blog.category}</p>
+                            <div className="flex items-center justify-between">
+                                <p className="text-sm text-gray-500"> {formatDate(blog.createdAt)}</p>
 
-                            <div className="flex justify-end gap-2">
-                                <button
-                                    onClick={() => {
-                                        setIsDeleteModalOpen(true);
-                                        setBlogToDelete(blog);
-                                    }}
-                                    className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition"
-                                >
-                                    Delete
-                                </button>
-                                <button onClick={() => handleUpdateInit(blog)} className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition">
-                                    Edit
-                                </button>
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => {
+                                            setIsDeleteModalOpen(true);
+                                            setBlogToDelete(blog);
+                                        }}
+                                        className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition"
+                                    >
+                                        Delete
+                                    </button>
+                                    <button onClick={() => handleUpdateInit(blog)} className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition">
+                                        Edit
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ))}
@@ -404,11 +418,6 @@ export const BlogPage = () => {
                         {/* Category Selector */}
                         <div className="mb-4">
                             <CustomSelect options={blogCategories} value={category} onChange={(selected) => setCategory(selected)} label="Category" placeholder="Select or type a category..." />
-
-                            
-
-                            {/* Existing Categories */}
-                            
                         </div>
 
                         {/* Image Upload */}

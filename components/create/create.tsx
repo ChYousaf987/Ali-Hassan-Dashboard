@@ -1,56 +1,116 @@
 'use client';
 
-import dynamic from 'next/dynamic';
-import { useState } from 'react';
-import 'react-quill/dist/quill.snow.css';
+import { useState, useEffect } from 'react';
+import { useQuill } from 'react-quilljs';
+import 'quill/dist/quill.snow.css';
 import { db } from '../../config/firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, deleteDoc, doc, query, where } from 'firebase/firestore';
+import { Timestamp } from 'firebase/firestore';
 import axios from 'axios';
 import './editor.css';
 import { showMessage } from '@/utils/notify/Alert';
 import ClockLoader from '../common/ClockLoader';
-import { CustomSelect } from './CustomSelect';
-import type { ReactQuillProps } from 'react-quill';
-
-const ReactQuill = dynamic(() => import('react-quill'), {
-    ssr: false,
-}) as unknown as React.FC<ReactQuillProps>;
-
-interface CategoryOption {
-    value: string;
-    label: string;
-}
+import { CustomSelect, Option } from './CustomSelect';
 
 export const CreateBlogs = () => {
+    const { quill, quillRef } = useQuill({
+        theme: 'snow',
+        modules: {
+            toolbar: true,
+        },
+    });
     const [value, setValue] = useState('');
     const [preview, setPreview] = useState<string | null>(null);
     const [title, setTitle] = useState('');
     const [image, setImage] = useState<File | null>(null);
-    const [category, setCategory] = useState<CategoryOption | null>({
-        value: 'web-development',
-        label: 'Web Development',
-    });
+    const [category, setCategory] = useState<Option | null>(null);
     const [loading, setLoading] = useState(false);
+    const [blogCategories, setBlogCategories] = useState<Option[]>([]);
 
-    const blogCategories: CategoryOption[] = [
-        { value: 'web-development', label: 'Web Development' },
-        { value: 'mobile-development', label: 'Mobile Development' },
-        { value: 'ai-ml', label: 'AI & Machine Learning' },
-        { value: 'cybersecurity', label: 'Cybersecurity' },
-        { value: 'cloud-computing', label: 'Cloud Computing' },
-        { value: 'data-science', label: 'Data Science' },
-        { value: 'programming', label: 'Programming' },
-        { value: 'tech-news', label: 'Tech News' },
-        { value: 'software-engineering', label: 'Software Engineering' },
-        { value: 'gadgets', label: 'Gadgets & Reviews' },
-        { value: 'gaming', label: 'Gaming' },
-        { value: 'productivity', label: 'Productivity & Tools' },
-        { value: 'entrepreneurship', label: 'Entrepreneurship' },
-        { value: 'marketing', label: 'Digital Marketing' },
-        { value: 'self-improvement', label: 'Self-Improvement' },
-        { value: 'finance', label: 'Finance & Investing' },
-        { value: 'lifestyle', label: 'Lifestyle & Wellness' },
-    ];
+    useEffect(() => {
+        if (quill) {
+            quill.on('text-change', () => {
+                setValue(quill.root.innerHTML);
+            });
+        }
+    }, [quill]);
+
+    const fetchCategories = async (): Promise<Option[]> => {
+        try {
+            const querySnapshot = await getDocs(collection(db, 'categories'));
+            const firestoreCategories = querySnapshot.docs.map((doc) => {
+                const data = doc.data();
+                return {
+                    value: data.value || data.label || doc.id,
+                    label: data.label || data.value || doc.id,
+                };
+            });
+            return firestoreCategories;
+        } catch (error) {
+            console.error('Error fetching categories:', error);
+            return [];
+        }
+    };
+
+    const addCategory = async (newCat: string): Promise<Option> => {
+        const newOption: Option = {
+            label: newCat,
+            value: newCat.toLowerCase().replace(/\s+/g, '-'),
+        };
+        try {
+            if (!blogCategories.some((cat) => cat.value === newOption.value)) {
+                await addDoc(collection(db, 'categories'), newOption);
+                setBlogCategories((prev) => [...prev, newOption]);
+            }
+            return newOption;
+        } catch (error) {
+            console.error('Error adding category to Firestore:', error);
+            return newOption;
+        }
+    };
+
+    const deleteCategory = async (value: string) => {
+        try {
+            const blogsQuery = query(collection(db, 'blogs'), where('category', '==', value));
+            const blogsSnapshot = await getDocs(blogsQuery);
+            if (!blogsSnapshot.empty) {
+                showMessage('Cannot delete category: it is used by one or more blogs.', 'error');
+                return;
+            }
+
+            const categoryQuery = query(collection(db, 'categories'), where('value', '==', value));
+            const categorySnapshot = await getDocs(categoryQuery);
+            if (categorySnapshot.empty) {
+                console.warn(`Category with value ${value} not found in Firestore`);
+                return;
+            }
+
+            const categoryDoc = categorySnapshot.docs[0];
+            await deleteDoc(doc(db, 'categories', categoryDoc.id));
+
+            setBlogCategories((prev) => prev.filter((cat) => cat.value !== value));
+            if (category?.value === value) {
+                setCategory(null);
+            }
+            showMessage('Category deleted successfully!', 'success');
+        } catch (error) {
+            console.error('Error deleting category:', error);
+            showMessage('Failed to delete category.', 'error');
+        }
+    };
+
+    useEffect(() => {
+        const loadCategories = async () => {
+            setLoading(true);
+            try {
+                const categories = await fetchCategories();
+                setBlogCategories(categories);
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadCategories();
+    }, []);
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -91,12 +151,16 @@ export const CreateBlogs = () => {
                 imageURL = response.data.secure_url;
             }
 
+            if (category && !blogCategories.some((cat) => cat.value === category.value)) {
+                await addCategory(category.label);
+            }
+
             await addDoc(collection(db, 'blogs'), {
                 title,
                 image: imageURL,
                 value,
                 category: category.value,
-                createdAt: new Date(),
+                createdAt: Timestamp.fromDate(new Date()),
             });
 
             showMessage('Blog created successfully!', 'success');
@@ -105,7 +169,7 @@ export const CreateBlogs = () => {
             setImage(null);
             setPreview(null);
             setValue('');
-            setCategory({ value: 'web-development', label: 'Web Development' });
+            setCategory(null);
         } catch (error: any) {
             console.error('Error creating blog:', error?.response || error.message || error);
             showMessage('Failed to create blog.', 'error');
@@ -128,10 +192,17 @@ export const CreateBlogs = () => {
                     className="w-full p-3 text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
 
-                <CustomSelect options={blogCategories} value={category} onChange={(selected) => setCategory(selected)} label="Category" placeholder="Select or type a category..." />
+                <CustomSelect
+                    options={blogCategories}
+                    value={category}
+                    onChange={(selected) => setCategory(selected)}
+                    label="Category"
+                    placeholder="Select or type a category..."
+                    onDeleteCategory={deleteCategory}
+                />
 
                 <div className="bg-white rounded-md shadow-sm overflow-hidden">
-                    <ReactQuill theme="snow" value={value} onChange={setValue} className="h-48 overflow-y-auto" />
+                    <div ref={quillRef} className="h-48 overflow-y-auto" />
                 </div>
 
                 <div className="flex flex-col space-y-2">
