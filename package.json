@@ -9,6 +9,8 @@
         "lint": "next lint"
     },
     "dependencies": {
+        "@ckeditor/ckeditor5-build-classic": "^43.3.1",
+        "@ckeditor/ckeditor5-react": "^9.5.0",
         "@headlessui/react": "^2.1.2",
         "@mantine/core": "^5.10.5",
         "@mantine/hooks": "^5.10.5",
@@ -54,7 +56,7 @@
     },
     "devDependencies": {
         "@tailwindcss/forms": "^0.5.3",
-        "@tailwindcss/typography": "^0.5.8",
+        "@tailwindcss/typography": "^0.5.16",
         "@types/crypto-js": "^4.2.2",
         "@types/js-cookie": "^3.0.6",
         "@types/lodash": "^4.17.10",

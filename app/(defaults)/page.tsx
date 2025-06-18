@@ -1,3 +1,5 @@
+// app\(defaults)\page.tsx
+
 import { BlogPage } from '@/components/blogs/blogs';
 import { Metadata } from 'next';
 import React from 'react';

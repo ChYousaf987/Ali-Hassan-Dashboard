@@ -4,13 +4,12 @@ import { useEffect, useState } from 'react';
 import { db } from '@/config/firebase';
 import { collection, getDocs, updateDoc, doc, deleteDoc, addDoc, Timestamp } from 'firebase/firestore';
 import axios from 'axios';
-import dynamic from 'next/dynamic';
+import { useQuill } from 'react-quilljs'; // Replace react-quill with react-quilljs
+import 'quill/dist/quill.snow.css';
+import '../create/editor.css';
 import ClockLoader from '../common/ClockLoader';
 import { showMessage } from '@/utils/notify/Alert';
 import CreatableSelect from 'react-select/creatable';
-
-import 'quill/dist/quill.snow.css';
-import '../create/editor.css';
 
 const CLOUDINARY_URL = process.env.NEXT_PUBLIC_CLOUDINARY_URL!;
 const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!;
@@ -102,8 +101,6 @@ const CustomSelect: React.FC<CustomSelectProps> = ({ onChange, value, options, l
     );
 };
 
-const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
-
 // Helper function to format Firebase Timestamp
 const formatDate = (timestamp: any): string => {
     if (!timestamp || !timestamp.toDate) return 'No date available';
@@ -155,6 +152,27 @@ export const BlogPage = () => {
     const [isImageModalOpen, setIsImageModalOpen] = useState(false);
     const [modalImage, setModalImage] = useState<string | null>(null);
 
+    // Initialize Quill editor
+    const { quill, quillRef } = useQuill({
+        theme: 'snow',
+        modules: {
+            toolbar: true,
+        },
+    });
+
+    // Sync Quill content with state
+    useEffect(() => {
+        if (quill) {
+            quill.on('text-change', () => {
+                setValue(quill.root.innerHTML);
+            });
+            // Set initial content when editing
+            if (selectedBlog && isEditOpen) {
+                quill.root.innerHTML = selectedBlog.value || '';
+            }
+        }
+    }, [quill, selectedBlog, isEditOpen]);
+
     const fetchCategories = async (): Promise<Option[]> => {
         try {
             const querySnapshot = await getDocs(collection(db, 'categories'));
@@ -165,12 +183,11 @@ export const BlogPage = () => {
                     label: data.label || data.value || doc.id,
                 };
             });
-            // Merge hardcoded categories with Firestore categories, avoiding duplicates
             const mergedCategories = [...blogCategories, ...firestoreCategories.filter((fc) => !blogCategories.some((bc) => bc.value === fc.value))];
             return mergedCategories;
         } catch (error) {
             console.error('Error fetching categories:', error);
-            return blogCategories; // Fallback to hardcoded categories
+            return blogCategories;
         }
     };
 
@@ -180,7 +197,6 @@ export const BlogPage = () => {
             value: newCat.toLowerCase().replace(/\s+/g, '-'),
         };
         try {
-            // Avoid adding duplicate categories
             if (!blogCategories.some((cat) => cat.value === newOption.value)) {
                 await addDoc(collection(db, 'categories'), newOption);
                 setBlogCategories((prev) => [...prev, newOption]);
@@ -188,7 +204,7 @@ export const BlogPage = () => {
             return newOption;
         } catch (error) {
             console.error('Error adding category to Firestore:', error);
-            return newOption; // Return the option even if Firestore write fails
+            return newOption;
         }
     };
 
@@ -412,7 +428,7 @@ export const BlogPage = () => {
 
                         {/* Rich Text Editor */}
                         <div className="mb-4">
-                            <ReactQuill theme="snow" value={value} onChange={setValue} style={{ height: '100%' }} />
+                            <div ref={quillRef} className="h-48 overflow-y-auto" />
                         </div>
 
                         {/* Category Selector */}
