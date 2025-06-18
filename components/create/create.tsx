@@ -122,7 +122,7 @@ export const CreateBlogs = () => {
     };
 
     const handleCreate = async () => {
-        if (!title || !value || !category) {
+        if (!title || !value || !category || !image) {
             showMessage('Please Enter All The Fields.', 'error');
             return;
         }
